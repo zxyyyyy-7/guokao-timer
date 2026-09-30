@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f7f9">
+<title>国考分模块计时器</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#747b86;--line:#e7e9ee;--accent:#315efb;--ok:#1d9b5f;--warn:#d98200;--bad:#d63c3c;--shadow:0 8px 28px rgba(20,25,35,.07)}
+@media(prefers-color-scheme:dark){:root{--bg:#111318;--card:#191c22;--text:#f5f6f8;--muted:#9da4af;--line:#2a2f38;--accent:#7895ff;--shadow:none}}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+button,input{font:inherit} button{touch-action:manipulation}
+.wrap{max-width:1000px;margin:auto;padding:24px 18px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+h1{font-size:28px;margin:0}.sub{color:var(--muted);font-size:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:20px;margin:14px 0}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mode{border:1px solid var(--line);background:var(--card);color:var(--text);padding:17px;border-radius:16px;font-weight:700}.mode.active{border:2px solid var(--accent);color:var(--accent)}
+.timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:16px}.step{padding:13px 10px;border-radius:14px;background:var(--bg);border:1px solid var(--line);text-align:center}.step.active{outline:2px solid var(--accent)}.step.done{color:var(--ok)}.step.over{color:var(--bad)}
+.step b{display:block}.step small{color:var(--muted)}
+.hero{text-align:center;padding:28px 16px}.module{font-size:24px;font-weight:800}.qcount{color:var(--muted);margin-top:5px}.timer{font-size:clamp(68px,14vw,128px);font-weight:800;letter-spacing:-4px;line-height:1;margin:22px 0 10px;font-variant-numeric:tabular-nums}.timer.warn{color:var(--warn)}.timer.bad{color:var(--bad);animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.58}}
+.overlabel{min-height:28px;color:var(--bad);font-weight:800}.overall{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;color:var(--muted);margin:18px 0 0}.overall strong{color:var(--text);font-variant-numeric:tabular-nums}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.btn{border:0;border-radius:14px;padding:15px 10px;font-weight:750;background:#e9ecf3;color:#20242c}.primary{background:var(--accent);color:white}.danger{color:var(--bad)}
+.banner{position:fixed;left:50%;top:max(16px,env(safe-area-inset-top));transform:translateX(-50%) translateY(-140%);z-index:99;width:min(92%,760px);padding:16px 20px;border-radius:16px;background:var(--bad);color:white;text-align:center;font-weight:800;box-shadow:0 10px 40px rgba(0,0,0,.2);transition:.25s}.banner.show{transform:translateX(-50%) translateY(0)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.hidden{display:none!important}.reviewRow{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.reviewRow input{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+.historyItem{padding:14px 0;border-bottom:1px solid var(--line)}.smallbtn{border:1px solid var(--line);background:var(--bg);color:var(--text);padding:8px 12px;border-radius:10px}
+nav{display:flex;gap:8px;flex-wrap:wrap}.navbtn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:10px 13px}
+.note{color:var(--muted);font-size:14px;line-height:1.6}.summary{line-height:1.8}
+@media(max-width:650px){.wrap{padding:16px 12px 44px}.controls{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.reviewRow{grid-template-columns:1.3fr .7fr}.reviewRow .timecol{grid-column:1/-1}.top{align-items:flex-start;flex-direction:column}.timer{letter-spacing:-2px}}
+</style>
+</head>
+<body>
+<div id="banner" class="banner"></div>
+<div class="wrap">
+  <div class="top">
+    <div><h1>国考分模块计时器</h1><div class="sub">120 分钟硬计时 · 无声音提醒 · iPad 友好</div></div>
+    <nav><button class="navbtn" data-page="exam">计时</button><button class="navbtn" data-page="history">历史</button><button class="navbtn" data-page="settings">设置</button></nav>
+  </div>
+
+  <section id="examPage">
+    <div class="card">
+      <div class="tabs">
+        <button id="newMode" class="mode">新版国考 · 130题</button>
+        <button id="oldMode" class="mode">旧版国考 · 130题</button>
+      </div>
+      <div id="modeInfo" class="note" style="margin-top:12px"></div>
+      <div id="timeline" class="timeline"></div>
+    </div>
+
+    <div class="card hero">
+      <div id="module" class="module">资料分析</div>
+      <div id="qcount" class="qcount">20题</div>
+      <div id="timer" class="timer">25:00</div>
+      <div id="overlabel" class="overlabel"></div>
+      <div class="overall">
+        <span>整场已用 <strong id="elapsed">00:00</strong></span>
+        <span>整场剩余 <strong id="remain">120:00</strong></span>
+      </div>
+      <div class="controls">
+        <button id="startPause" class="btn primary">开始考试</button>
+        <button id="prev" class="btn">上一模块</button>
+        <button id="next" class="btn">下一模块</button>
+        <button id="reset" class="btn danger">重置</button>
+      </div>
+    </div>
+    <div class="card note">模块到点后不会强制跳转，而会进入红色 <b>+超时</b> 计时；整场 120 分钟始终继续。新版计划用时 113 分钟，预留 7 分钟机动。</div>
+  </section>
+
+  <section id="reviewPage" class="hidden">
+    <div class="card"><h2>本次套卷复盘</h2><div id="reviewRows"></div><button id="saveReview" class="btn primary" style="margin-top:16px">保存本次记录</button></div>
+    <div id="reviewSummary" class="card summary"></div>
+  </section>
+
+  <section id="historyPage" class="hidden">
+    <div class="card"><h2>历史记录</h2><div id="historyList"></div></div>
+  </section>
+
+  <section id="settingsPage" class="hidden">
+    <div class="card">
+      <h2>设置</h2>
+      <p class="note">模块已经全部预设，无需手动添加。这里仅允许修改目标分钟数。</p>
+      <div id="settingsRows"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button id="saveSettings" class="btn primary">保存设置</button><button id="defaults" class="btn">恢复默认</button></div>
+    </div>
+  </section>
+</div>
+<script>
+(()=>{
+'use strict';
+const DEFAULTS={
+ new:{name:'新版国考',modules:[
+  {name:'资料分析',q:20,min:25,target:17},
+  {name:'言语理解',q:30,min:25,target:22},
+  {name:'数量关系',q:10,min:10,target:5},
+  {name:'判断推理',q:35,min:35,target:27},
+  {name:'政治理论',q:20,min:10,target:12},
+  {name:'常识判断',q:15,min:8,target:8}
+ ]},
+ old:{name:'旧版国考',modules:[
+  {name:'资料分析',q:20,min:25,target:null},
+  {name:'言语理解',q:40,min:35,target:null},
+  {name:'数量关系',q:10,min:10,target:null},
+  {name:'判断推理',q:40,min:35,target:null},
+  {name:'常识判断',q:20,min:15,target:null}
+ ]}
+};
+const $=id=>document.getElementById(id);
+const clone=o=>JSON.parse(JSON.stringify(o));
+function safeGet(k,fallback){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fallback}catch(e){return fallback}}
+function safeSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let configs=safeGet('gk_configs_v1',clone(DEFAULTS));
+let state=safeGet('gk_state_v2',null)||freshState('new');
+let tick=null, bannerTimer=null;
+
+function freshState(mode){
+ return {mode,index:0,running:false,paused:false,examStart:null,moduleStart:null,pauseStart:null,totalPaused:0,modulePaused:0,records:[],finished:false};
+}
+function mods(){return configs[state.mode].modules}
+function fmt(sec){
+ sec=Math.max(0,Math.floor(sec)); const m=Math.floor(sec/60),s=sec%60;
+ return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function now(){return Date.now()}
+function examElapsed(){
+ if(!state.examStart)return 0;
+ let end=state.paused&&state.pauseStart?state.pauseStart:now();
+ return Math.max(0,(end-state.examStart-state.totalPaused)/1000);
+}
+function moduleElapsed(){
+ if(!state.moduleStart)return 0;
+ let end=state.paused&&state.pauseStart?state.pauseStart:now();
+ return Math.max(0,(end-state.moduleStart-state.modulePaused)/1000);
+}
+function showBanner(msg){
+ const b=$('banner'); b.textContent=msg;b.classList.add('show');
+ clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove('show'),4000);
+}
+function persist(){safeSet('gk_state_v2',state)}
+function render(){
+ const m=mods()[state.index]||mods()[mods().length-1];
+ $('newMode').classList.toggle('active',state.mode==='new');
+ $('oldMode').classList.toggle('active',state.mode==='old');
+ $('modeInfo').textContent=state.mode==='new'?'130题｜资料20 → 言语30 → 数量10 → 判断35 → 政治20 → 常识15｜计划113分钟 + 7分钟机动':'130题｜资料20 → 言语40 → 数量10 → 判断40 → 常识20';
+ $('module').textContent=state.finished?'考试结束':m.name;
+ $('qcount').textContent=state.finished?'请完成本次复盘':m.q+'题';
+ let used=moduleElapsed(), limit=m.min*60, left=limit-used;
+ const timer=$('timer'), ol=$('overlabel');
+ timer.classList.remove('warn','bad');
+ if(state.finished){timer.textContent='00:00';ol.textContent='';}
+ else if(left>=0){timer.textContent=fmt(left);ol.textContent='';if(left<=10&&state.running)timer.classList.add('bad');else if(left<=60&&state.running)timer.classList.add('warn')}
+ else{timer.textContent='+'+fmt(-left);timer.classList.add('bad');ol.textContent=m.name+'已超时 '+fmt(-left)}
+ const ee=examElapsed(); $('elapsed').textContent=fmt(ee);$('remain').textContent=fmt(Math.max(0,7200-ee));
+ $('startPause').textContent=!state.running?'开始考试':state.paused?'继续':'暂停';
+ $('timeline').innerHTML=mods().map((x,i)=>{
+   let cls='step'+(i===state.index&&!state.finished?' active':'')+(i<state.index||state.finished?' done':'');
+   let rec=state.records.find(r=>r.index===i); if(rec&&rec.actual>x.min*60)cls+=' over';
+   return `<div class="${cls}"><b>${i<state.index||state.finished?'✓ ':''}${x.name}</b><small>${x.q}题 · ${x.min}min</small></div>`
+ }).join('');
+ if(state.running&&!state.paused&&!state.finished && ee>=7200) finishExam();
+}
+function startPause(){
+ if(state.finished)return;
+ if(!state.running){
+  state.running=true;state.examStart=now();state.moduleStart=now();state.paused=false;
+  requestWake(); showBanner('考试开始 · '+mods()[state.index].name);
+ }else if(!state.paused){
+  state.paused=true;state.pauseStart=now();
+ }else{
+  const d=now()-state.pauseStart;state.totalPaused+=d;state.modulePaused+=d;state.pauseStart=null;state.paused=false;requestWake();
+ }
+ persist();render();
+}
+function recordCurrent(){
+ if(!state.running||!state.moduleStart)return;
+ const i=state.index, actual=moduleElapsed();
+ state.records=state.records.filter(r=>r.index!==i);
+ state.records.push({index:i,actual});
+}
+function next(){
+ if(state.finished)return;
+ if(!state.running){showBanner('请先开始考试');return}
+ recordCurrent();
+ if(state.index>=mods().length-1){finishExam();return}
+ state.index++;state.moduleStart=now();state.modulePaused=0;
+ if(state.paused){state.pauseStart=now()}
+ showBanner('进入 '+mods()[state.index].name);persist();render();
+}
+function prev(){
+ if(state.finished||state.index===0)return;
+ if(state.running)recordCurrent();
+ state.index--;state.moduleStart=now();state.modulePaused=0;if(state.paused)state.pauseStart=now();
+ showBanner('返回 '+mods()[state.index].name);persist();render();
+}
+function finishExam(){
+ if(state.finished)return;
+ if(state.running)recordCurrent();
+ state.finished=true;state.running=false;state.paused=false;persist();render();buildReview();showPage('review');showBanner('考试结束 · 开始复盘');
+}
+function reset(){
+ if(!confirm('确定重置本次考试吗？本次未保存记录会丢失。'))return;
+ const mode=state.mode;state=freshState(mode);persist();render();
+}
+function switchMode(mode){
+ if(state.running&&!state.finished && !confirm('切换模式会重置当前计时，确定切换吗？'))return;
+ state=freshState(mode);persist();render();showBanner('已切换至'+configs[mode].name+' · 130题');
+}
+function buildReview(){
+ const box=$('reviewRows');box.innerHTML='';
+ mods().forEach((m,i)=>{
+  const r=state.records.find(x=>x.index===i);const actual=r?r.actual:0;
+  box.insertAdjacentHTML('beforeend',`<div class="reviewRow"><div><b>${m.name}</b><div class="note">目标 ${m.target==null?'—':m.target+'/'+m.q}</div></div><div><input id="score_${i}" type="number" min="0" max="${m.q}" placeholder="正确数"></div><div class="timecol note">实际 ${fmt(actual)} / 目标 ${m.min}:00</div></div>`);
+ });
+ updateSummary();
+}
+function updateSummary(){
+ if(!state.finished){$('reviewSummary').innerHTML='<b>完成考试后生成复盘。</b>';return}
+ let html='<h3>时间复盘</h3>';mods().forEach((m,i)=>{let r=state.records.find(x=>x.index===i),a=r?r.actual:0,d=a-m.min*60;html+=`<div>${m.name}：${fmt(a)} ｜ ${d>0?'超时 '+fmt(d):'节省 '+fmt(-d)}</div>`});$('reviewSummary').innerHTML=html;
+}
+function saveReview(){
+ let scores=[],correct=0,total=0;
+ mods().forEach((m,i)=>{let v=parseInt($('score_'+i).value,10);if(Number.isNaN(v))v=0;v=Math.max(0,Math.min(m.q,v));scores.push(v);correct+=v;total+=m.q});
+ let history=safeGet('gk_history_v1',[]);
+ history.unshift({id:Date.now(),date:new Date().toLocaleString('zh-CN'),mode:state.mode,correct,total,scores,records:state.records,elapsed:examElapsed()});
+ safeSet('gk_history_v1',history);showBanner('本次复盘已保存');renderHistory();
+}
+function renderHistory(){
+ let h=safeGet('gk_history_v1',[]),box=$('historyList');
+ if(!h.length){box.innerHTML='<p class="note">还没有保存过套卷记录。</p>';return}
+ box.innerHTML=h.map(x=>`<div class="historyItem"><b>${x.mode==='new'?'新版':'旧版'}国考 · ${x.correct}/${x.total}（${Math.round(x.correct/x.total*100)}%）</b><div class="note">${x.date} · 用时 ${fmt(x.elapsed)}</div><button class="smallbtn delHistory" data-id="${x.id}" style="margin-top:8px">删除</button></div>`).join('');
+ document.querySelectorAll('.delHistory').forEach(b=>b.onclick=()=>{let a=safeGet('gk_history_v1',[]).filter(x=>String(x.id)!==b.dataset.id);safeSet('gk_history_v1',a);renderHistory()});
+}
+function renderSettings(){
+ const box=$('settingsRows');box.innerHTML='<h3>当前：'+configs[state.mode].name+'</h3>';
+ mods().forEach((m,i)=>box.insertAdjacentHTML('beforeend',`<div class="reviewRow"><b>${m.name}</b><div><input id="min_${i}" type="number" min="1" max="120" value="${m.min}"></div><div class="note">分钟</div></div>`));
+}
+function saveSettings(){
+ mods().forEach((m,i)=>{let v=parseInt($('min_'+i).value,10);if(v>0)m.min=v});safeSet('gk_configs_v1',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('设置已保存');
+}
+function restoreDefaults(){configs=clone(DEFAULTS);safeSet('gk_configs_v1',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('已恢复默认设置')}
+function showPage(name){
+ ['exam','review','history','settings'].forEach(p=>$(p+'Page').classList.toggle('hidden',p!==name));
+ if(name==='history')renderHistory();if(name==='settings')renderSettings();if(name==='review')buildReview();
+}
+async function requestWake(){try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen')}catch(e){}}
+$('newMode').onclick=()=>switchMode('new');$('oldMode').onclick=()=>switchMode('old');
+$('startPause').onclick=startPause;$('next').onclick=next;$('prev').onclick=prev;$('reset').onclick=reset;
+$('saveReview').onclick=saveReview;$('saveSettings').onclick=saveSettings;$('defaults').onclick=restoreDefaults;
+document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.running&&!state.paused)requestWake()});
+tick=setInterval(render,250);
+render();renderHistory();
+})();
+</script>
+</body>
+</html>
