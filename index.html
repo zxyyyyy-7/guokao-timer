@@ -89,7 +89,10 @@ const DEFAULTS={
   {name:'资料分析',q:20,min:25,target:17},
   {name:'言语理解',q:30,min:25,target:22},
   {name:'数量关系',q:10,min:10,target:5},
-  {name:'判断推理',q:35,min:35,target:27},
+  {name:'图形推理',q:10,min:10,target:9},
+  {name:'定义判断',q:10,min:8,target:8},
+  {name:'类比推理',q:10,min:7,target:7},
+  {name:'逻辑判断',q:5,min:10,target:3},
   {name:'政治理论',q:20,min:10,target:12},
   {name:'常识判断',q:15,min:8,target:8}
  ]},
@@ -97,7 +100,10 @@ const DEFAULTS={
   {name:'资料分析',q:20,min:25,target:null},
   {name:'言语理解',q:40,min:35,target:null},
   {name:'数量关系',q:10,min:10,target:null},
-  {name:'判断推理',q:40,min:35,target:null},
+  {name:'图形推理',q:10,min:10,target:null},
+  {name:'定义判断',q:10,min:8,target:null},
+  {name:'类比推理',q:10,min:7,target:null},
+  {name:'逻辑判断',q:10,min:10,target:null},
   {name:'常识判断',q:20,min:15,target:null}
  ]}
 };
@@ -105,8 +111,8 @@ const $=id=>document.getElementById(id);
 const clone=o=>JSON.parse(JSON.stringify(o));
 function safeGet(k,fallback){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fallback}catch(e){return fallback}}
 function safeSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-let configs=safeGet('gk_configs_v1',clone(DEFAULTS));
-let state=safeGet('gk_state_v2',null)||freshState('new');
+let configs=safeGet('gk_configs_v2',clone(DEFAULTS));
+let state=safeGet('gk_state_v3',null)||freshState('new');
 let tick=null, bannerTimer=null;
 
 function freshState(mode){
@@ -132,12 +138,12 @@ function showBanner(msg){
  const b=$('banner'); b.textContent=msg;b.classList.add('show');
  clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove('show'),4000);
 }
-function persist(){safeSet('gk_state_v2',state)}
+function persist(){safeSet('gk_state_v3',state)}
 function render(){
  const m=mods()[state.index]||mods()[mods().length-1];
  $('newMode').classList.toggle('active',state.mode==='new');
  $('oldMode').classList.toggle('active',state.mode==='old');
- $('modeInfo').textContent=state.mode==='new'?'130题｜资料20 → 言语30 → 数量10 → 判断35 → 政治20 → 常识15｜计划113分钟 + 7分钟机动':'130题｜资料20 → 言语40 → 数量10 → 判断40 → 常识20';
+ $('modeInfo').textContent=state.mode==='new'?'130题｜资料20 → 言语30 → 数量10 → 图推10 → 定义10 → 类比10 → 逻辑5 → 政治20 → 常识15｜计划113分钟 + 7分钟机动':'130题｜资料20 → 言语40 → 数量10 → 图推10 → 定义10 → 类比10 → 逻辑10 → 常识20';
  $('module').textContent=state.finished?'考试结束':m.name;
  $('qcount').textContent=state.finished?'请完成本次复盘':m.q+'题';
  let used=moduleElapsed(), limit=m.min*60, left=limit-used;
@@ -231,9 +237,9 @@ function renderSettings(){
  mods().forEach((m,i)=>box.insertAdjacentHTML('beforeend',`<div class="reviewRow"><b>${m.name}</b><div><input id="min_${i}" type="number" min="1" max="120" value="${m.min}"></div><div class="note">分钟</div></div>`));
 }
 function saveSettings(){
- mods().forEach((m,i)=>{let v=parseInt($('min_'+i).value,10);if(v>0)m.min=v});safeSet('gk_configs_v1',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('设置已保存');
+ mods().forEach((m,i)=>{let v=parseInt($('min_'+i).value,10);if(v>0)m.min=v});safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('设置已保存');
 }
-function restoreDefaults(){configs=clone(DEFAULTS);safeSet('gk_configs_v1',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('已恢复默认设置')}
+function restoreDefaults(){configs=clone(DEFAULTS);safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('已恢复默认设置')}
 function showPage(name){
  ['exam','review','history','settings'].forEach(p=>$(p+'Page').classList.toggle('hidden',p!==name));
  if(name==='history')renderHistory();if(name==='settings')renderSettings();if(name==='review')buildReview();
