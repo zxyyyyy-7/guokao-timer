@@ -86,25 +86,25 @@ nav{display:flex;gap:8px;flex-wrap:wrap}.navbtn{border:1px solid var(--line);bac
 'use strict';
 const DEFAULTS={
  new:{name:'新版国考',modules:[
-  {name:'资料分析',q:20,min:25,target:17},
+  {name:'资料分析',q:20,min:27,target:17},
   {name:'言语理解',q:30,min:25,target:22},
   {name:'数量关系',q:10,min:10,target:5},
   {name:'图形推理',q:10,min:10,target:9},
   {name:'定义判断',q:10,min:8,target:8},
-  {name:'类比推理',q:10,min:7,target:7},
-  {name:'逻辑判断',q:5,min:10,target:3},
+  {name:'类比推理',q:5,min:5,target:4},
+  {name:'逻辑判断',q:10,min:10,target:6},
   {name:'政治理论',q:20,min:10,target:12},
   {name:'常识判断',q:15,min:8,target:8}
  ]},
  old:{name:'旧版国考',modules:[
-  {name:'资料分析',q:20,min:25,target:null},
+  {name:'资料分析',q:20,min:27,target:null},
   {name:'言语理解',q:40,min:35,target:null},
   {name:'数量关系',q:10,min:10,target:null},
   {name:'图形推理',q:10,min:10,target:null},
   {name:'定义判断',q:10,min:8,target:null},
   {name:'类比推理',q:10,min:7,target:null},
   {name:'逻辑判断',q:10,min:10,target:null},
-  {name:'常识判断',q:20,min:15,target:null}
+  {name:'常识判断',q:20,min:13,target:null}
  ]}
 };
 const $=id=>document.getElementById(id);
@@ -112,6 +112,30 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function safeGet(k,fallback){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fallback}catch(e){return fallback}}
 function safeSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 let configs=safeGet('gk_configs_v2',clone(DEFAULTS));
+// Upgrade the previous preset without deleting historical records or unrelated preferences.
+if(!safeGet('gk_preset_27_5_migrated',false)){
+ const ms=configs.new&&configs.new.modules;
+ if(Array.isArray(ms)){
+  const data=ms.find(x=>x.name==='资料分析');
+  const analogy=ms.find(x=>x.name==='类比推理');
+  if(data&&data.min===25)data.min=27;
+  if(analogy&&analogy.min===7)analogy.min=5;
+  safeSet('gk_configs_v2',configs);
+ }
+ safeSet('gk_preset_27_5_migrated',true);
+}
+// Apply the new old-paper timing preset once, preserving saved scores and history.
+if(!safeGet('gk_old_27_13_migrated',false)){
+ const ms=configs.old&&configs.old.modules;
+ if(Array.isArray(ms)){
+  const data=ms.find(x=>x.name==='资料分析');
+  const common=ms.find(x=>x.name==='常识判断');
+  if(data&&data.min===25)data.min=27;
+  if(common&&common.min===15)common.min=13;
+  safeSet('gk_configs_v2',configs);
+ }
+ safeSet('gk_old_27_13_migrated',true);
+}
 let state=safeGet('gk_state_v3',null)||freshState('new');
 let tick=null, bannerTimer=null;
 
@@ -143,7 +167,7 @@ function render(){
  const m=mods()[state.index]||mods()[mods().length-1];
  $('newMode').classList.toggle('active',state.mode==='new');
  $('oldMode').classList.toggle('active',state.mode==='old');
- $('modeInfo').textContent=state.mode==='new'?'130题｜资料20 → 言语30 → 数量10 → 图推10 → 定义10 → 类比10 → 逻辑5 → 政治20 → 常识15｜计划113分钟 + 7分钟机动':'130题｜资料20 → 言语40 → 数量10 → 图推10 → 定义10 → 类比10 → 逻辑10 → 常识20';
+ $('modeInfo').textContent=state.mode==='new'?'130题｜资料20 → 言语30 → 数量10 → 图推10 → 定义10 → 类比5 → 逻辑10 → 政治20 → 常识15｜计划113分钟 + 7分钟机动':'130题｜资料20 → 言语40 → 数量10 → 图推10 → 定义10 → 类比10 → 逻辑10 → 常识20';
  $('module').textContent=state.finished?'考试结束':m.name;
  $('qcount').textContent=state.finished?'请完成本次复盘':m.q+'题';
  let used=moduleElapsed(), limit=m.min*60, left=limit-used;
