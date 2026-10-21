@@ -77,7 +77,7 @@ nav{display:flex;gap:8px;flex-wrap:wrap}.navbtn{border:1px solid var(--line);bac
       <h2>设置</h2>
       <p class="note">模块已经全部预设，无需手动添加。这里仅允许修改目标分钟数。</p>
       <div id="settingsRows"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button id="saveSettings" class="btn primary">保存设置</button><button id="defaults" class="btn">恢复默认</button></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button id="saveSettings" class="btn primary">保存顺序与时间</button><button id="defaults" class="btn">恢复默认</button></div>
     </div>
   </section>
 </div>
@@ -257,13 +257,25 @@ function renderHistory(){
  document.querySelectorAll('.delHistory').forEach(b=>b.onclick=()=>{let a=safeGet('gk_history_v1',[]).filter(x=>String(x.id)!==b.dataset.id);safeSet('gk_history_v1',a);renderHistory()});
 }
 function renderSettings(){
- const box=$('settingsRows');box.innerHTML='<h3>当前：'+configs[state.mode].name+'</h3>';
- mods().forEach((m,i)=>box.insertAdjacentHTML('beforeend',`<div class="reviewRow"><b>${m.name}</b><div><input id="min_${i}" type="number" min="1" max="120" value="${m.min}"></div><div class="note">分钟</div></div>`));
+ const box=$('settingsRows');
+ box.innerHTML='<h3>当前：'+configs[state.mode].name+'</h3><p class="note">使用 ↑ ↓ 调整作答顺序，修改分钟数后点击「保存顺序与时间」。新版和旧版的顺序分别保存。考试进行中请先完成或重置再调整。</p>';
+ mods().forEach((m,i)=>box.insertAdjacentHTML('beforeend',`<div class="reviewRow"><div><b>${i+1}. ${m.name}</b><div style="display:flex;gap:6px;margin-top:7px"><button class="smallbtn moveUp" data-i="${i}" ${i===0?'disabled':''}>↑ 上移</button><button class="smallbtn moveDown" data-i="${i}" ${i===mods().length-1?'disabled':''}>↓ 下移</button></div></div><div><input id="min_${i}" type="number" min="1" max="120" value="${m.min}"></div><div class="note">分钟</div></div>`));
+ document.querySelectorAll('.moveUp,.moveDown').forEach(btn=>btn.onclick=()=>{
+  if(state.running&&!state.finished){showBanner('考试进行中不能调整顺序，请先重置');return}
+  // Capture unsaved time edits before reordering.
+  mods().forEach((m,i)=>{let v=Number($('min_'+i).value);if(Number.isInteger(v)&&v>=1&&v<=120)m.min=v});
+  const i=Number(btn.dataset.i),j=i+(btn.classList.contains('moveUp')?-1:1);
+  if(j<0||j>=mods().length)return;
+  [mods()[i],mods()[j]]=[mods()[j],mods()[i]];
+  renderSettings();
+ });
 }
 function saveSettings(){
- mods().forEach((m,i)=>{let v=parseInt($('min_'+i).value,10);if(v>0)m.min=v});safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('设置已保存');
+ if(state.running&&!state.finished){showBanner('请先结束或重置当前考试');return}
+ mods().forEach((m,i)=>{let v=Number($('min_'+i).value);if(Number.isInteger(v)&&v>=1&&v<=120)m.min=v});
+ safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('作答顺序和时间已保存');
 }
-function restoreDefaults(){configs=clone(DEFAULTS);safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('已恢复默认设置')}
+function restoreDefaults(){if(state.running&&!state.finished){showBanner('请先结束或重置当前考试');return}configs=clone(DEFAULTS);safeSet('gk_configs_v2',configs);state=freshState(state.mode);persist();render();renderSettings();showBanner('已恢复默认设置')}
 function showPage(name){
  ['exam','review','history','settings'].forEach(p=>$(p+'Page').classList.toggle('hidden',p!==name));
  if(name==='history')renderHistory();if(name==='settings')renderSettings();if(name==='review')buildReview();
